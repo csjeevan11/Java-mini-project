@@ -5,55 +5,49 @@ pipeline {
         JAVA_HOME = "/usr/lib/jvm/java-17-openjdk-amd64"
         PATH = "${JAVA_HOME}/bin:${PATH}"
 
-        // SonarQube
-        SONAR_HOST_URL = "http://<SONAR-IP>:9000"
         SONAR_PROJECT_KEY = "java-mini-project"
 
-        // Artifactory
         ARTIFACTORY_URL = "http://<ARTIFACTORY-IP>:8081/artifactory"
         ART_REPO = "java-mini-project-local"
-
-        // Tomcat
-        TOMCAT_WEBAPPS = "/opt/tomcat/webapps"
     }
 
     stages {
 
-        stage('Branch Validation') {
+        stage('Validate Branch') {
             when {
-                expression { env.BRANCH_NAME == 'name.developer' }
+                branch 'name.developer'
             }
             steps {
-                echo "Running pipeline for branch: ${BRANCH_NAME}"
+                echo "Pipeline triggered for ${BRANCH_NAME}"
             }
         }
 
-        stage('Checkout Code') {
+        stage('Checkout') {
             when {
-                expression { env.BRANCH_NAME == 'name.developer' }
+                branch 'name.developer'
             }
             steps {
                 checkout scm
             }
         }
 
-        stage('SonarQube Analysis') {
+        stage('SonarQube Scan') {
             when {
-                expression { env.BRANCH_NAME == 'name.developer' }
+                branch 'name.developer'
             }
             steps {
                 withSonarQubeEnv('SonarQube-Server') {
-                    sh '''
-                        mvn clean verify sonar:sonar \
-                        -Dsonar.projectKey=${SONAR_PROJECT_KEY}
-                    '''
+                    sh """
+                      mvn clean verify sonar:sonar \
+                      -Dsonar.projectKey=${SONAR_PROJECT_KEY}
+                    """
                 }
             }
         }
 
         stage('Quality Gate') {
             when {
-                expression { env.BRANCH_NAME == 'name.developer' }
+                branch 'name.developer'
             }
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
@@ -64,16 +58,16 @@ pipeline {
 
         stage('Build WAR') {
             when {
-                expression { env.BRANCH_NAME == 'name.developer' }
+                branch 'name.developer'
             }
             steps {
                 sh 'mvn clean package'
             }
         }
 
-        stage('Upload WAR to Artifactory') {
+        stage('Upload to Artifactory') {
             when {
-                expression { env.BRANCH_NAME == 'name.developer' }
+                branch 'name.developer'
             }
             steps {
                 withCredentials([usernamePassword(
@@ -81,23 +75,12 @@ pipeline {
                     usernameVariable: 'ART_USER',
                     passwordVariable: 'ART_PASS'
                 )]) {
-                    sh '''
-                        curl -u ${ART_USER}:${ART_PASS} \
-                        -T target/*.war \
-                        ${ARTIFACTORY_URL}/${ART_REPO}/
-                    '''
+                    sh """
+                      curl -u ${ART_USER}:${ART_PASS} \
+                      -T target/*.war \
+                      ${ARTIFACTORY_URL}/${ART_REPO}/
+                    """
                 }
-            }
-        }
-
-        stage('Deploy to Tomcat') {
-            when {
-                expression { env.BRANCH_NAME == 'name.developer' }
-            }
-            steps {
-                sh '''
-                    sudo cp target/*.war ${TOMCAT_WEBAPPS}/
-                '''
             }
         }
     }
@@ -107,7 +90,7 @@ pipeline {
             echo "Pipeline completed successfully"
         }
         failure {
-            echo "Pipeline failed"
+            echo "Pipeline failed "
         }
     }
 }
