@@ -3,8 +3,13 @@ pipeline {
 
     environment {
         // Java
-        JAVA_HOME = "/usr/lib/jvm/java-17-openjdk-amd64"
-        PATH = "${JAVA_HOME}/bin:${PATH}"
+    	JAVA_HOME = "/usr/lib/jvm/java-17-openjdk-amd64"
+
+    	// Maven
+    	MAVEN_HOME = "/opt/maven"
+
+        // Add Java and Maven to PATH
+        PATH = "${JAVA_HOME}/bin:${MAVEN_HOME}/bin:${env.PATH}"
 
         // SonarQube
         SONARQUBE_URL = "http://3.110.219.224:9000"
@@ -14,7 +19,6 @@ pipeline {
         ARTIFACTORY_URL = "http://172.31.40.213:8081/artifactory"
         ARTIFACTORY_CREDS = credentials('jfrog-creds')
     }
-
     stages {
 
         stage('Checkout') {
