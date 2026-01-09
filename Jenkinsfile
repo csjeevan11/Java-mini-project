@@ -3,22 +3,21 @@ pipeline {
 
     environment {
         // Java
-    	JAVA_HOME = "/usr/lib/jvm/java-17-openjdk-amd64"
+        JAVA_HOME = "/usr/lib/jvm/java-17-openjdk-amd64"
 
-    	// Maven
-    	MAVEN_HOME = "/opt/maven"
+        // Maven
+        MAVEN_HOME = "/opt/maven"
 
-        // Add Java and Maven to PATH
+        // PATH
         PATH = "${JAVA_HOME}/bin:${MAVEN_HOME}/bin:${env.PATH}"
 
-        // SonarQube
+        // SonarQube URL
         SONARQUBE_URL = "http://3.110.219.224:9000"
-        SONARQUBE_AUTH_TOKEN = credentials('Sonar-token')
 
         // Artifactory
         ARTIFACTORY_URL = "http://172.31.40.213:8081/artifactory"
-        ARTIFACTORY_CREDS = credentials('jfrog-creds')
     }
+
     stages {
 
         stage('Checkout') {
@@ -40,12 +39,16 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 dir('sample-app') {
-                    sh """
-                    mvn sonar:sonar \
-                    -Dsonar.projectKey=JavaMiniProject \
-                    -Dsonar.host.url=${SONARQUBE_URL} \
-                    -Dsonar.login=${SONARQUBE_AUTH_TOKEN}
-                    """
+                    withSonarQubeEnv('sonar-server') {
+                        withCredentials([string(credentialsId: 'Sonar-token', variable: 'SONAR_TOKEN')]) {
+                            sh '''
+                                mvn clean verify sonar:sonar \
+                                -Dsonar.projectKey=JavaMiniProject \
+                                -Dsonar.host.url=${SONARQUBE_URL} \
+                                -Dsonar.login=${SONAR_TOKEN}
+                            '''
+                        }
+                    }
                 }
             }
         }
@@ -53,11 +56,17 @@ pipeline {
         stage('Upload to Artifactory') {
             steps {
                 dir('sample-app/target') {
-                    sh """
-                    curl -u ${ARTIFACTORY_CREDS_USR}:${ARTIFACTORY_CREDS_PSW} \
-                    -T *.war \
-                    ${ARTIFACTORY_URL}/java-mini-project-local/
-                    """
+                    withCredentials([usernamePassword(
+                        credentialsId: 'jfrog-creds',
+                        usernameVariable: 'ART_USER',
+                        passwordVariable: 'ART_PASS'
+                    )]) {
+                        sh '''
+                            curl -u ${ART_USER}:${ART_PASS} \
+                            -T *.war \
+                            ${ARTIFACTORY_URL}/java-mini-project-local/
+                        '''
+                    }
                 }
             }
         }
@@ -65,10 +74,10 @@ pipeline {
         stage('Deploy to Tomcat') {
             steps {
                 dir('sample-app/target') {
-                    sh """
-                    sudo cp *.war /opt/tomcat/webapps/
-                    sudo systemctl restart tomcat10
-                    """
+                    sh '''
+                        sudo cp *.war /opt/tomcat/webapps/
+                        sudo systemctl restart tomcat10
+                    '''
                 }
             }
         }
