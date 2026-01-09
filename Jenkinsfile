@@ -76,7 +76,7 @@ pipeline {
                 dir('sample-app/target') {
                     sh '''
                         sudo cp *.war /opt/tomcat/webapps/
-                        sudo systemctl restart tomcat10
+                        sudo systemctl restart tomcat
                     '''
                 }
             }
