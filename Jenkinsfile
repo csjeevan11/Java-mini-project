@@ -2,12 +2,11 @@ pipeline {
     agent { label 'agent1' }
 
     environment {
-        JAVA_HOME = "/usr/lib/jvm/java-17-openjdk-amd64"
+        JAVA_HOME  = "/usr/lib/jvm/java-17-openjdk-amd64"
         MAVEN_HOME = "/opt/maven"
         PATH = "${JAVA_HOME}/bin:${MAVEN_HOME}/bin:${env.PATH}"
-
         SONARQUBE_URL = "http://3.110.219.224:9000"
-        ARTIFACTORY_URL = "http://172.31.40.213:8081/artifactory"
+        ARTIFACTORY_REPO_URL = "http://172.31.40.213:8081/artifactory/java-mini-project-local"
     }
 
     triggers {
@@ -19,7 +18,7 @@ pipeline {
         stage('Branch Validation') {
             when {
                 expression {
-                    return env.BRANCH_NAME == 'name.developer'
+                    env.BRANCH_NAME == 'name.developer'
                 }
             }
             steps {
@@ -69,23 +68,12 @@ pipeline {
             }
         }
 
-        stage('Build & Package') {
+        stage('Build & Deploy to Artifactory') {
             when {
                 branch 'name.developer'
             }
             steps {
                 dir('sample-app') {
-                    sh 'mvn clean package -DskipTests'
-                }
-            }
-        }
-
-        stage('Upload to Artifactory') {
-            when {
-                branch 'name.developer'
-            }
-            steps {
-                dir('sample-app/target') {
                     withCredentials([
                         usernamePassword(
                             credentialsId: 'jfrog-creds',
@@ -94,22 +82,35 @@ pipeline {
                         )
                     ]) {
                         sh '''
-                            curl -u ${ART_USER}:${ART_PASS} \
-                            -T *.war \
-                            ${ARTIFACTORY_URL}/java-mini-project-local/
+                            mvn clean deploy -DskipTests \
+                            -DaltDeploymentRepository=artifactory::default::${ARTIFACTORY_REPO_URL} \
+                            -Dusername=${ART_USER} \
+                            -Dpassword=${ART_PASS}
                         '''
                     }
                 }
             }
         }
+        stage('Deploy to Tomcat') {
+            when {
+                branch 'name.developer'
+            }
+            steps {
+                dir('sample-app/target') {
+                    sh '''
+                        sudo cp *.war /opt/tomcat/webapps/
+                        sudo systemctl restart tomcat
+                    '''
+                }
+            }
+        }
     }
-
     post {
         success {
-            echo "Pipeline completed successfully for branch ${env.BRANCH_NAME}"
+            echo "Pipeline completed successfully"
         }
         failure {
-            echo "Pipeline failed (Sonar gate or build error)"
+            echo "Pipeline failed (Sonar / Build / Deploy error)"
         }
     }
 }
