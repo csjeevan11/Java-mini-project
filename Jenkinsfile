@@ -8,7 +8,7 @@ pipeline {
 
         // SonarQube
         SONARQUBE_URL = "http://3.110.219.224:9000"
-        SONARQUBE_AUTH_TOKEN = credentials('sonar-token')
+        SONARQUBE_AUTH_TOKEN = credentials('Sonar-token')
 
         // Artifactory
         ARTIFACTORY_URL = "http://172.31.40.213:8081/artifactory"
