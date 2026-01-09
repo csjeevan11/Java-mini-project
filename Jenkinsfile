@@ -19,8 +19,9 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                git branch: 'master',
+                git branch: 'main',
                     url: 'https://github.com/csjeevan11/Java-mini-project.git'
+                    credentialsId: 'github'
             }
         }
 
