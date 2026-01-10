@@ -2,34 +2,49 @@ pipeline {
     agent any
 
     environment {
-        JAVA_HOME = "/usr/lib/jvm/java-17-openjdk-amd64"
-        PATH = "${JAVA_HOME}/bin:${PATH}"
+        JAVA_HOME  = "/usr/lib/jvm/java-17-openjdk-amd64"
+        MAVEN_HOME = "/opt/maven"
+        PATH = "${JAVA_HOME}/bin:${MAVEN_HOME}/bin:${env.PATH}"
+        SONARQUBE_URL = "http://3.110.46.96/:9000"
+        ARTIFACTORY_REPO_URL = "http://3.110.46.96/:8081/artifactory/java-mini-project-local"
+    }
 
-        SONAR_PROJECT_KEY = "java-mini-project"
-
-        ARTIFACTORY_URL = "http://<ARTIFACTORY-IP>:8081/artifactory"
-        ART_REPO = "java-mini-project-local"
+    triggers {
+        githubPush()
     }
 
     stages {
-        stage('Checkout') {
+
+        stage('Checkout') {            
             steps {
                 checkout scm
             }
         }
 
-        stage('SonarQube Scan') {
+        stage('SonarQube Analysis') {
+            
+            }
             steps {
-                withSonarQubeEnv('sonar-server') {
-                    sh """
-                      mvn clean verify sonar:sonar \
-                      -Dsonar.projectKey=${SONAR_PROJECT_KEY}
-                    """
+                dir('sample-app') {
+                    withSonarQubeEnv('sonar-server') {
+                        withCredentials([
+                            string(credentialsId: 'Sonar-token', variable: 'SONAR_TOKEN')
+                        ]) {
+                            sh '''
+                                mvn clean verify sonar:sonar \
+                                -Dsonar.projectKey=JavaMiniProject \
+                                -Dsonar.host.url=${SONARQUBE_URL} \
+                                -Dsonar.login=${SONAR_TOKEN}
+                            '''
+                        }
+                    }
                 }
             }
         }
 
         stage('Quality Gate') {
+            
+            }
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
@@ -37,35 +52,46 @@ pipeline {
             }
         }
 
-        stage('Build WAR') {
+        stage('Build & Deploy to Artifactory') {
+                        }
             steps {
-                sh 'mvn clean package'
+                dir('sample-app') {
+                    withCredentials([
+                        usernamePassword(
+                            credentialsId: 'jfrog-creds',
+                            usernameVariable: 'ART_USER',
+                            passwordVariable: 'ART_PASS'
+                        )
+                    ]) {
+                        sh '''
+                            mvn clean deploy -DskipTests \
+                            -DaltDeploymentRepository=artifactory::default::${ARTIFACTORY_REPO_URL} \
+                            -Dusername=${ART_USER} \
+                            -Dpassword=${ART_PASS}
+                        '''
+                    }
+                }
             }
         }
-
-        stage('Upload to Artifactory') {
+        stage('Deploy to Tomcat') {
+            
+            }
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'jfrog-creds',
-                    usernameVariable: 'ART_USER',
-                    passwordVariable: 'ART_PASS'
-                )]) {
-                    sh """
-                      curl -u ${ART_USER}:${ART_PASS} \
-                      -T target/*.war \
-                      ${ARTIFACTORY_URL}/${ART_REPO}/
-                    """
+                dir('sample-app/target') {
+                    sh '''
+                        sudo cp *.war /opt/tomcat/webapps/
+                        sudo systemctl restart tomcat
+                    '''
                 }
             }
         }
     }
-
     post {
         success {
             echo "Pipeline completed successfully"
         }
         failure {
-            echo "Pipeline failed "
+            echo "Pipeline failed (Sonar / Build / Deploy error)"
         }
     }
 }
