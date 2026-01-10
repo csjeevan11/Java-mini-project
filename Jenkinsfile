@@ -5,8 +5,9 @@ pipeline {
         JAVA_HOME  = "/usr/lib/jvm/java-17-openjdk-amd64"
         MAVEN_HOME = "/opt/maven"
         PATH = "${JAVA_HOME}/bin:${MAVEN_HOME}/bin:${env.PATH}"
-        SONARQUBE_URL = "http://3.110.46.96/:9000"
-        ARTIFACTORY_REPO_URL = "http://3.110.46.96/:8081/artifactory/java-mini-project-local"
+
+        SONARQUBE_URL = "http://3.110.46.96:9000"
+        ARTIFACTORY_REPO_URL = "http://3.110.46.96:8081/artifactory/java-mini-project-local"
     }
 
     triggers {
@@ -15,36 +16,26 @@ pipeline {
 
     stages {
 
-        stage('Checkout') {            
+        stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
         stage('SonarQube Analysis') {
-            
-            }
             steps {
                 dir('sample-app') {
                     withSonarQubeEnv('sonar-server') {
-                        withCredentials([
-                            string(credentialsId: 'Sonar-token', variable: 'SONAR_TOKEN')
-                        ]) {
-                            sh '''
-                                mvn clean verify sonar:sonar \
-                                -Dsonar.projectKey=JavaMiniProject \
-                                -Dsonar.host.url=${SONARQUBE_URL} \
-                                -Dsonar.login=${SONAR_TOKEN}
-                            '''
-                        }
+                        sh '''
+                            mvn clean verify sonar:sonar \
+                            -Dsonar.projectKey=JavaMiniProject
+                        '''
                     }
                 }
             }
         }
 
         stage('Quality Gate') {
-            
-            }
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
@@ -53,7 +44,6 @@ pipeline {
         }
 
         stage('Build & Deploy to Artifactory') {
-                        }
             steps {
                 dir('sample-app') {
                     withCredentials([
@@ -73,9 +63,8 @@ pipeline {
                 }
             }
         }
+
         stage('Deploy to Tomcat') {
-            
-            }
             steps {
                 dir('sample-app/target') {
                     sh '''
@@ -86,6 +75,7 @@ pipeline {
             }
         }
     }
+
     post {
         success {
             echo "Pipeline completed successfully"
