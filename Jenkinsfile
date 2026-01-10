@@ -2,20 +2,16 @@ pipeline {
     agent any
 
     environment {
-        JAVA_HOME  = "/usr/lib/jvm/java-17-openjdk-amd64"
-        MAVEN_HOME = "/opt/maven"
-        PATH = "${JAVA_HOME}/bin:${MAVEN_HOME}/bin:${env.PATH}"
+        JAVA_HOME = "/usr/lib/jvm/java-17-openjdk-amd64"
+        PATH = "${JAVA_HOME}/bin:${PATH}"
 
-        SONARQUBE_URL = "http://3.110.46.96:9000"
-        ARTIFACTORY_REPO_URL = "http://3.110.46.96:8081/artifactory/java-mini-project-local"
-    }
-
-    triggers {
-        githubPush()
+        SONAR_PROJECT_KEY = "java-mini-project"
+        SONARQUBE_URL = "http://3.110.46.96/:9000"
+        ARTIFACTORY_REPO_URL = "http://3.110.46.96/:8081/artifactory/java-mini-project-local"
+        ART_REPO = "java-mini-project-local"
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 checkout scm
@@ -23,13 +19,21 @@ pipeline {
         }
 
         stage('SonarQube Analysis') {
+            
+            }
             steps {
                 dir('sample-app') {
                     withSonarQubeEnv('sonar-server') {
-                        sh '''
-                            mvn clean verify sonar:sonar \
-                            -Dsonar.projectKey=JavaMiniProject
-                        '''
+                        withCredentials([
+                            string(credentialsId: 'Sonar-token', variable: 'SONAR_TOKEN')
+                        ]) {
+                            sh '''
+                                mvn clean verify sonar:sonar \
+                                -Dsonar.projectKey=JavaMiniProject \
+                                -Dsonar.host.url=${SONARQUBE_URL} \
+                                -Dsonar.login=${SONAR_TOKEN}
+                            '''
+                        }
                     }
                 }
             }
@@ -43,34 +47,24 @@ pipeline {
             }
         }
 
-        stage('Build & Deploy to Artifactory') {
+        stage('Build WAR') {
             steps {
-                dir('sample-app') {
-                    withCredentials([
-                        usernamePassword(
-                            credentialsId: 'jfrog-creds',
-                            usernameVariable: 'ART_USER',
-                            passwordVariable: 'ART_PASS'
-                        )
-                    ]) {
-                        sh '''
-                            mvn clean deploy -DskipTests \
-                            -DaltDeploymentRepository=artifactory::default::${ARTIFACTORY_REPO_URL} \
-                            -Dusername=${ART_USER} \
-                            -Dpassword=${ART_PASS}
-                        '''
-                    }
-                }
+                sh 'mvn clean package'
             }
         }
 
-        stage('Deploy to Tomcat') {
+        stage('Upload to Artifactory') {
             steps {
-                dir('sample-app/target') {
-                    sh '''
-                        sudo cp *.war /opt/tomcat/webapps/
-                        sudo systemctl restart tomcat
-                    '''
+                withCredentials([usernamePassword(
+                    credentialsId: 'jfrog-creds',
+                    usernameVariable: 'ART_USER',
+                    passwordVariable: 'ART_PASS'
+                )]) {
+                    sh """
+                      curl -u ${ART_USER}:${ART_PASS} \
+                      -T target/*.war \
+                      ${ARTIFACTORY_URL}/${ART_REPO}/
+                    """
                 }
             }
         }
@@ -81,7 +75,7 @@ pipeline {
             echo "Pipeline completed successfully"
         }
         failure {
-            echo "Pipeline failed (Sonar / Build / Deploy error)"
+            echo "Pipeline failed "
         }
     }
 }
