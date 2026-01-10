@@ -1,5 +1,5 @@
 pipeline {
-    agent { label 'agent1' }
+    agent { label 'Built-In Node' }
 
     environment {
         JAVA_HOME = "/usr/lib/jvm/java-17-openjdk-amd64"
