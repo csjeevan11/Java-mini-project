@@ -36,7 +36,7 @@ pipeline {
                 branch 'name.developer'
             }
             steps {
-                withSonarQubeEnv('SonarQube-Server') {
+                withSonarQubeEnv('sonar-server') {
                     sh """
                       mvn clean verify sonar:sonar \
                       -Dsonar.projectKey=${SONAR_PROJECT_KEY}
