@@ -3,15 +3,16 @@ pipeline {
 
     environment {
         JAVA_HOME = "/usr/lib/jvm/java-17-openjdk-amd64"
-        PATH = "${JAVA_HOME}/bin:${PATH}"
+        PATH = "${JAVA_HOME}/bin:${env.PATH}"
 
         SONAR_PROJECT_KEY = "java-mini-project"
-        SONARQUBE_URL = "http://3.110.46.96/:9000"
-        ARTIFACTORY_REPO_URL = "http://3.110.46.96/:8081/artifactory/java-mini-project-local"
-        ART_REPO = "java-mini-project-local"
+        SONARQUBE_URL = "http://3.110.46.96:9000"
+
+        ARTIFACTORY_REPO_URL = "http://3.110.46.96:8081/artifactory/java-mini-project-local"
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
@@ -19,21 +20,17 @@ pipeline {
         }
 
         stage('SonarQube Analysis') {
-            
-            }
             steps {
-                dir('sample-app') {
-                    withSonarQubeEnv('sonar-server') {
-                        withCredentials([
-                            string(credentialsId: 'Sonar-token', variable: 'SONAR_TOKEN')
-                        ]) {
-                            sh '''
-                                mvn clean verify sonar:sonar \
-                                -Dsonar.projectKey=JavaMiniProject \
-                                -Dsonar.host.url=${SONARQUBE_URL} \
-                                -Dsonar.login=${SONAR_TOKEN}
-                            '''
-                        }
+                withSonarQubeEnv('sonar-server') {
+                    withCredentials([
+                        string(credentialsId: 'Sonar-token', variable: 'SONAR_TOKEN')
+                    ]) {
+                        sh '''
+                            mvn clean verify sonar:sonar \
+                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                            -Dsonar.host.url=${SONARQUBE_URL} \
+                            -Dsonar.login=${SONAR_TOKEN}
+                        '''
                     }
                 }
             }
@@ -55,16 +52,18 @@ pipeline {
 
         stage('Upload to Artifactory') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'jfrog-creds',
-                    usernameVariable: 'ART_USER',
-                    passwordVariable: 'ART_PASS'
-                )]) {
-                    sh """
-                      curl -u ${ART_USER}:${ART_PASS} \
-                      -T target/*.war \
-                      ${ARTIFACTORY_URL}/${ART_REPO}/
-                    """
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'jfrog-creds',
+                        usernameVariable: 'ART_USER',
+                        passwordVariable: 'ART_PASS'
+                    )
+                ]) {
+                    sh '''
+                        curl -u ${ART_USER}:${ART_PASS} \
+                        -T target/*.war \
+                        ${ARTIFACTORY_REPO_URL}/
+                    '''
                 }
             }
         }
@@ -75,7 +74,7 @@ pipeline {
             echo "Pipeline completed successfully"
         }
         failure {
-            echo "Pipeline failed "
+            echo "Pipeline failed"
         }
     }
 }
