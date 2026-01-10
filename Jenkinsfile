@@ -12,29 +12,13 @@ pipeline {
     }
 
     stages {
-
-        stage('Validate Branch') {
-            when {
-                branch 'name.developer'
-            }
-            steps {
-                echo "Pipeline triggered for ${BRANCH_NAME}"
-            }
-        }
-
         stage('Checkout') {
-            when {
-                branch 'name.developer'
-            }
             steps {
                 checkout scm
             }
         }
 
         stage('SonarQube Scan') {
-            when {
-                branch 'name.developer'
-            }
             steps {
                 withSonarQubeEnv('sonar-server') {
                     sh """
@@ -46,9 +30,6 @@ pipeline {
         }
 
         stage('Quality Gate') {
-            when {
-                branch 'name.developer'
-            }
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
@@ -57,18 +38,12 @@ pipeline {
         }
 
         stage('Build WAR') {
-            when {
-                branch 'name.developer'
-            }
             steps {
                 sh 'mvn clean package'
             }
         }
 
         stage('Upload to Artifactory') {
-            when {
-                branch 'name.developer'
-            }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'jfrog-creds',
