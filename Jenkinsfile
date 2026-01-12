@@ -6,9 +6,9 @@ pipeline {
         PATH = "${JAVA_HOME}/bin:${env.PATH}"
 
         SONAR_PROJECT_KEY = "java-mini-project"
-        SONARQUBE_URL = "http://3.110.46.96:9000"
+        SONARQUBE_URL = "http://13.200.237.225:9000"
 
-        ARTIFACTORY_REPO_URL = "http://3.110.46.96:8081/artifactory/java-mini-project-local"
+        ARTIFACTORY_REPO_URL = "http://13.200.237.225:8081/artifactory/java-mini-project-local"
     }
 
     stages {
