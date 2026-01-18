@@ -21,11 +21,13 @@ pipeline {
             steps {
                 withSonarQubeEnv('sonar-server') {
                     withCredentials([
-                        string(credentialsId: 'Sonar-token', variable: 'SONAR_TOKEN')
+                        string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')
                     ]) {
                         sh '''
-                            mvn clean verify sonar:sonar \
-                            -Dsonar.projectKey=${SONAR_PROJECT_KEY}
+                        mvn clean verify sonar:sonar \
+                          -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                          -Dsonar.host.url=${SONARQUBE_URL} \
+                          -Dsonar.login=${SONAR_TOKEN}
                         '''
                     }
                 }
@@ -42,16 +44,17 @@ pipeline {
 
         stage('Build WAR') {
             steps {
-                sh 'mvn clean package'
+                sh 'mvn package'
             }
         }
+    }
 
     post {
         success {
-            echo "Pipeline completed successfully"
+            echo "✅ Pipeline completed successfully"
         }
         failure {
-            echo "Pipeline failed"
+            echo "❌ Pipeline failed"
         }
     }
 }
