@@ -6,9 +6,7 @@ pipeline {
         PATH = "${JAVA_HOME}/bin:${env.PATH}"
 
         SONAR_PROJECT_KEY = "java-mini-project"
-        SONARQUBE_URL = "http://13.203.204.187:9000"
-
-        ARTIFACTORY_REPO_URL = "http://13.203.204.187:8081/artifactory/java-mini-project-local"
+        SONARQUBE_URL = "http://3.108.227.87:9000"
     }
 
     stages {
@@ -47,25 +45,6 @@ pipeline {
                 sh 'mvn clean package'
             }
         }
-
-        stage('Upload to Artifactory') {
-            steps {
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'jfrog-creds',
-                        usernameVariable: 'ART_USER',
-                        passwordVariable: 'ART_PASS'
-                    )
-                ]) {
-                    sh '''
-                        curl -u ${ART_USER}:${ART_PASS} \
-                        -T target/*.war \
-                        ${ARTIFACTORY_REPO_URL}/
-                    '''
-                }
-            }
-        }
-    }
 
     post {
         success {
